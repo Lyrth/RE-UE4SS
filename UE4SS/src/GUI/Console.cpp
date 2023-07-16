@@ -128,7 +128,7 @@ namespace RC::GUI
         //*/
 
         /**/
-        const float footer_height_to_reserve = (ImGui::GetStyle().ItemSpacing.y * 10.0f) + ImGui::GetFrameHeightWithSpacing();
+        const float footer_height_to_reserve = (ImGui::GetStyle().ItemSpacing.y * 10.0f) + ImGui::GetFrameHeightWithSpacing() + 50;
         {
             std::lock_guard<std::mutex> guard(m_lines_mutex);
             m_text_editor.Render("TextEditor", {-10, -footer_height_to_reserve});
@@ -141,6 +141,23 @@ namespace RC::GUI
     {
         m_filter.Draw("Search log", 200);
     }
+
+    auto Console::render_repl_editor() -> void
+    {
+        m_repl_text_editor.Render("ReplEditor", {-60, 50});
+    }
+
+    auto Console::flush_repl_script() -> std::string
+    {
+        const char* ws = "\r\n\t ";
+        auto code = m_repl_text_editor.GetText();
+        code.erase(code.find_last_not_of(ws) + 1);
+        code.erase(0, code.find_first_not_of(ws));
+
+        m_repl_text_editor.SetText("");
+        return code;
+    }
+
 
     static auto LogLevel_to_ImColor(Color::Color color) -> std::pair<ImColor, ImColor>
     {

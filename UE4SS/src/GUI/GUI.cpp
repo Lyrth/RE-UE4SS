@@ -124,6 +124,21 @@ namespace RC::GUI
 
                     get_console().render();
 
+                    if (event_thread_busy) { ImGui::BeginDisabled(true); }
+                    get_console().render_repl_editor();
+                    ImGui::SameLine();
+                    if (ImGui::Button("Run"))
+                    {
+                        m_event_thread_busy = true;
+                        UE4SSProgram::get_program().queue_event([](void* data) {
+                            auto code = static_cast<GUI::DebuggingGUI*>(data)->get_console().flush_repl_script();
+                            std::string_view code_view{code};
+                            UE4SSProgram::get_program().get_repl()->run_script(code_view);
+                            static_cast<GUI::DebuggingGUI*>(data)->m_event_thread_busy = false;
+                        }, this);
+                    }
+                    if (event_thread_busy) { ImGui::EndDisabled(); }
+
                     ImGui::EndTabItem();
                 }
 

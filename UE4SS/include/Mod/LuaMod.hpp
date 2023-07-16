@@ -118,7 +118,7 @@ namespace RC
         LuaMod(UE4SSProgram&, std::wstring&& mod_name, std::wstring&& mod_path);
         ~LuaMod() override = default;
 
-      private:
+      protected:
         auto start_async_thread() -> void
         {
             m_async_thread = std::jthread{&Mod::update_async, this};
@@ -171,5 +171,13 @@ namespace RC
         // Lua instance connected to the in-game console.
         static LuaMadeSimple::Lua* console_executor;
         static bool console_executor_enabled;
+    };
+
+    class LuaRunner : public LuaMod
+    {
+    public:
+        LuaRunner(UE4SSProgram&);
+        auto start_mod() -> void override;
+        auto run_script(std::string_view code) -> void;
     };
 } // namespace RC

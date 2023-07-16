@@ -520,6 +520,7 @@ namespace RC::LuaMadeSimple
         RC_LMS_API auto execute_file(std::wstring_view) const -> void;
         RC_LMS_API auto execute_string(std::string_view) const -> void;
         RC_LMS_API auto execute_string(std::wstring_view) const -> void;
+        RC_LMS_API auto execute_string_with_output(std::string_view) const -> std::string;
         RC_LMS_API auto open_all_libs() const -> void;
         RC_LMS_API auto set_hook(lua_Hook, int32_t mask, int32_t count) const -> void;
 

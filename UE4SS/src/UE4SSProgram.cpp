@@ -997,6 +997,13 @@ namespace RC
                     m_mods.emplace_back(std::make_unique<CppMod>(*this, sub_directory.path().stem().wstring(), sub_directory.path().wstring()));
             }
         }
+
+        m_mods.emplace_back(std::make_unique<LuaRunner>(*this));
+    }
+
+    auto UE4SSProgram::get_repl() -> LuaRunner*
+    {
+        return dynamic_cast<LuaRunner*>(m_mods.back().get());
     }
 
     template <typename ModType>

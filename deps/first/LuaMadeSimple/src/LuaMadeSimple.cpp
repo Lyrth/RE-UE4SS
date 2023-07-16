@@ -463,6 +463,39 @@ namespace RC::LuaMadeSimple
         execute_string(code_ansi);
     }
 
+    auto Lua::execute_string_with_output(std::string_view code) const -> std::string
+    {
+        int status;
+        auto L = get_lua_state();
+
+        std::string code_ret = std::format("return {}", code.data());
+        status = luaL_loadbuffer(L, code_ret.c_str(), code_ret.length(), "=input"); // +fn/err
+        if (status != LUA_OK) {
+            lua_pop(L, 1); // -err
+            status = luaL_loadbuffer(L, code.data(), code.length(), "=input"); // +fn/err
+        }
+
+        status = status || lua_pcall(L, 0, LUA_MULTRET, 0); // fn? -fn,N+ret
+        if (status != LUA_OK) {
+            const char* err = luaL_tolstring(L, -1, nullptr); // +str
+            std::string err_msg(err);
+            lua_pop(L, 2); // -str -err
+            return err_msg;
+        }
+
+        std::string result;
+        auto ret_n = lua_gettop(L);
+        for (auto i = 1; i <= ret_n; i++) {
+            auto ret = luaL_tolstring(L, i, nullptr); // +str
+            lua_pop(L, 1); // -str
+            result.append(ret == nullptr ? "nil" : ret);
+            if (i < ret_n) result.append("    ");
+        }
+        lua_pop(L, ret_n); // N-ret
+
+        return result;
+    }
+
     auto Lua::open_all_libs() const -> void
     {
         luaL_openlibs(get_lua_state());

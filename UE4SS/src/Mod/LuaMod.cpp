@@ -263,6 +263,7 @@ namespace RC
             }
         };
 
+
         if (lua_data.lua_post_callback_ref != -1)
         {
             // Use the stored registry index to put a Lua function on the Lua stack
@@ -285,7 +286,6 @@ namespace RC
                 // Subtract one from the number of params if there's a return value
                 // This is because Unreal treats the return value as a param, and it's included in the 'NumParms' member variable
                 --num_unreal_params;
-
                 // Set up the return value param so that Lua can access the original return value
                 auto return_property = context.TheStack.CurrentNativeFunction()->GetReturnProperty();
                 auto return_property_type = return_property->GetClass().GetFName();
@@ -3171,7 +3171,6 @@ Overloads:
         LuaType::FText::construct(lua, Unreal::FText());
         lua_setglobal(lua.get_lua_state(), "FText");
         // FText Class -> END
-
         // FPackageName -> START
         auto package_name = lua.prepare_new_table();
         package_name.set_has_userdata(false);
@@ -4260,5 +4259,43 @@ Overloads:
         m_pending_actions.clear();
         m_delayed_actions.clear();
         actions_unlock();
+    }
+
+
+    LuaRunner::LuaRunner(RC::UE4SSProgram& program) : LuaMod(program, L"LuaConsoleRunner", L"")
+    {
+        set_installable(true);
+    }
+
+    auto LuaRunner::start_mod() -> void
+    {
+        prepare_mod(lua());
+        make_main_state(this, lua());
+        setup_lua_global_functions_main_state_only();
+
+        make_async_state(this, lua());
+
+        start_async_thread();
+
+        m_is_started = true;
+        Output::send(STR("Lua REPL runner loaded\n"));
+    }
+
+    auto LuaRunner::run_script(std::string_view code) -> void {
+        if (!is_started()) {
+            Output::send<LogLevel::Error>(STR("Lua REPL runner is not yet loaded!\n"));
+            return;
+        }
+        std::wstring w_code;
+        w_code.assign(code.begin(), code.end());
+        Output::send<LogLevel::Verbose>(STR("[REPL] Script:\n{}\n"), w_code);
+
+        std::string result = main_lua()->execute_string_with_output(code);
+        if (!result.empty())
+        {
+            std::wstring w_result;
+            w_result.assign(result.begin(), result.end());
+            Output::send(STR("[REPL] {}"), w_result);
+        }
     }
 } // namespace RC
