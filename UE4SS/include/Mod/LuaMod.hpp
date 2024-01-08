@@ -123,11 +123,11 @@ namespace RC
         {
             m_async_thread = std::jthread{&Mod::update_async, this};
         }
+        auto setup_lua_global_functions_main_state_only() const -> void;
 
       private:
         auto setup_lua_require_paths(const LuaMadeSimple::Lua& lua) const -> void;
         auto setup_lua_global_functions(const LuaMadeSimple::Lua& lua) const -> void;
-        auto setup_lua_global_functions_main_state_only() const -> void;
         auto setup_lua_classes(const LuaMadeSimple::Lua& lua) const -> void;
         auto fire_on_lua_start_for_cpp_mods() -> void;
         auto fire_on_lua_stop_for_cpp_mods() -> void;
