@@ -23,6 +23,8 @@ namespace RC::GUI
         std::mutex m_lines_mutex{};
         TextEditor m_text_editor{};
         TextEditor m_repl_text_editor{};
+        float m_console_size = -210;
+        float m_repl_size = 150;
         TextEditor::Breakpoints m_breakpoints{};
         const size_t m_maximum_num_lines{50000};
 
@@ -35,6 +37,7 @@ namespace RC::GUI
             m_text_editor.SetPalette(GetPalette());
             m_text_editor.SetBreakpoints(m_breakpoints);
             m_text_editor.SetTextFilter(&m_filter);
+
             m_repl_text_editor.SetConsoleMode(false);
             m_repl_text_editor.SetColorizerEnable(true);
             m_repl_text_editor.SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());

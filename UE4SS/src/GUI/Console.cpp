@@ -128,10 +128,13 @@ namespace RC::GUI
         //*/
 
         /**/
-        const float footer_height_to_reserve = (ImGui::GetStyle().ItemSpacing.y * 10.0f) + ImGui::GetFrameHeightWithSpacing() + 50;
+        if (m_console_size < 0) m_console_size = ImGui::GetContentRegionAvail().y + m_console_size;
+        ImGui_Splitter(false, 4.0f, &m_console_size, &m_repl_size, 32.0f, 32.0f, -10.0f);
+
+        //const float footer_height_to_reserve = (ImGui::GetStyle().ItemSpacing.y * 10.0f) + ImGui::GetFrameHeightWithSpacing() + 50;
         {
             std::lock_guard<std::mutex> guard(m_lines_mutex);
-            m_text_editor.Render("TextEditor", {-10, -footer_height_to_reserve});
+            m_text_editor.Render("TextEditor", {-10, m_console_size});
         }
         ImGui_AutoScroll("TextEditor", &m_previous_max_scroll_y);
         //*/
@@ -144,7 +147,7 @@ namespace RC::GUI
 
     auto Console::render_repl_editor() -> void
     {
-        m_repl_text_editor.Render("ReplEditor", {-60, 50});
+        m_repl_text_editor.Render("ReplEditor", {-60, -50});
     }
 
     auto Console::flush_repl_script() -> std::string
