@@ -466,6 +466,7 @@ namespace RC::LuaMadeSimple
     auto Lua::execute_string_with_output(std::string_view code) const -> std::string
     {
         int status;
+        std::string result;
         auto L = get_lua_state();
 
         std::string code_ret = std::format("return {}", code.data());
@@ -475,15 +476,17 @@ namespace RC::LuaMadeSimple
             status = luaL_loadbuffer(L, code.data(), code.length(), "=input"); // +fn/err
         }
 
-        status = status || lua_pcall(L, 0, LUA_MULTRET, 0); // fn? -fn,N+ret
         if (status != LUA_OK) {
-            const char* err = luaL_tolstring(L, -1, nullptr); // +str
-            std::string err_msg(err);
-            lua_pop(L, 2); // -str -err
-            return err_msg;
+            throw_error(std::format("luaL_loadbuffer returned {}", resolve_status_message(status, true)));
+            return result;
         }
 
-        std::string result;
+        status = lua_pcall(L, 0, LUA_MULTRET, 0); // -fn,N+ret
+        if (status != LUA_OK) {
+            throw_error(std::format("lua_pcall returned {}", resolve_status_message(status, true)));
+            return result;
+        }
+
         auto ret_n = lua_gettop(L);
         for (auto i = 1; i <= ret_n; i++) {
             auto ret = luaL_tolstring(L, i, nullptr); // +str
@@ -492,6 +495,10 @@ namespace RC::LuaMadeSimple
             if (i < ret_n) result.append("    ");
         }
         lua_pop(L, ret_n); // N-ret
+
+        if (ret_n > 0 && result.empty()) {
+            result.append("<lua: empty string>");
+        }
 
         return result;
     }
