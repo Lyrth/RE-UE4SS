@@ -4290,12 +4290,19 @@ Overloads:
         w_code.assign(code.begin(), code.end());
         Output::send<LogLevel::Verbose>(STR("[REPL] Script:\n{}\n"), w_code);
 
-        std::string result = main_lua()->execute_string_with_output(code);
-        if (!result.empty())
+        try
         {
-            std::wstring w_result;
-            w_result.assign(result.begin(), result.end());
-            Output::send(STR("[REPL] {}"), w_result);
+            std::string result = main_lua()->execute_string_with_output(code);
+            if (!result.empty())
+            {
+                std::wstring w_result;
+                w_result.assign(result.begin(), result.end());
+                Output::send(STR("[REPL] {}"), w_result);
+            }
+        }
+        catch (std::runtime_error& e)
+        {
+            Output::send<LogLevel::Error>(STR("{}\n"), to_wstring(e.what()));
         }
     }
 } // namespace RC
