@@ -4,7 +4,7 @@ project(UE4SSMonorepo)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-enable_language(CXX ASM_MASM)
+enable_language(CXX ASM ASM_MASM)
 include(CheckIPOSupported)
 include(GNUInstallDirs)
 
