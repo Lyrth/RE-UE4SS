@@ -42,9 +42,24 @@ namespace RC::LuaType
         return table;
     }
 
-    auto FText::setup_metamethods(BaseObject&) -> void
+    auto FText::setup_metamethods(BaseObject& base_object) -> void
     {
-        // AActor has no metamethods
+        base_object.get_metamethods().create(LuaMadeSimple::Lua::MetaMethod::ToString, []([[maybe_unused]] const LuaMadeSimple::Lua& lua) -> int {
+            if (!lua.is_userdata())
+            {
+                lua.throw_error(std::format("{} __tostring metamethod called but there was no userdata", ClassName::ToString()));
+            }
+
+            std::string name;
+
+            auto& ftext = lua.get_userdata<FText>().get_local_cpp_object();
+            name.append(ClassName::ToString());
+            name.append(std::format(" \"{}\": {:016X}", to_string(ftext.ToString()), reinterpret_cast<uintptr_t>(&ftext)));
+
+            lua.set_string(name);
+
+            return 1;
+        });
     }
 
     template <LuaMadeSimple::Type::IsFinal is_final>
