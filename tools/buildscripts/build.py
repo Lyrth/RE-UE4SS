@@ -157,7 +157,7 @@ def package(args):
                     ue4ss_dll_path = os.path.join(root, file)
                 if file.lower() == "ue4ss.pdb":
                     ue4ss_pdb_path = os.path.join(root, file)
-                if file.lower() == "dwmapi.dll":
+                if file.lower() == "dxgi.dll":
                     dwmapi_dll_path = os.path.join(root, file)
 
         # main dll
@@ -176,7 +176,7 @@ def package(args):
         print(f'created package {output}.zip')
 
         # clean up
-        for bin in ['ue4ss.dll', 'dwmapi.dll', 'ue4ss.pdb']:
+        for bin in ['ue4ss.dll', 'dxgi.dll', 'ue4ss.pdb']:
             try:
                 os.remove(os.path.join(staging_dir, bin))
             except:
