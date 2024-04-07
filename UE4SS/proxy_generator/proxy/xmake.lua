@@ -1,5 +1,5 @@
 option("ue4ssProxyPath")
-    set_default("C:\\Windows\\System32\\dwmapi.dll")
+    set_default("C:\\Windows\\System32\\dxgi.dll")
     set_description("Set path for a dll to generate the proxy for")
 
 target("proxy_files")
