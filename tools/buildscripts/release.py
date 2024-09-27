@@ -233,8 +233,6 @@ def ready_changelog_for_release(changelog_path):
     with open(changelog_path, 'r') as file:
         lines = file.readlines()
     version = lines[0].strip()
-    if lines[2] != 'TBD\n':
-        raise Exception('date is not "TBD"')
     lines[2] = datetime.today().strftime('%Y-%m-%d') + '\n'
     with open(changelog_path, 'w') as file:
         file.writelines(lines)
@@ -258,12 +256,6 @@ def package(args):
 def release_commit(args):
     version = ready_changelog_for_release(args.changelog_path)
     message = f'Release {version}'
-    subprocess.run(['git', 'add', args.changelog_path], check=True)
-    if args.username:
-        subprocess.run(['git', '-c', f'user.name="{args.username}"', '-c', f'user.email="{args.username}@users.noreply.github.com"', 'commit', '-m', message], check=True)
-    else:
-        subprocess.run(['git', 'commit', '-m', message], check=True)
-    subprocess.run(['git', 'tag', version], check=True)
 
     # Outputs to GitHub env if present
     def github_output(name, value):

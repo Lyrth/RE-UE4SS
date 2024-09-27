@@ -58,17 +58,16 @@ jobs:
         id: package
         run: python tools/buildscripts/release.py package
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
+      - name: Get Previous tag
+        id: previoustag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
-          tags: true
+          fallback: ${{ steps.release_commit.outputs.release_tag }}
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.release_commit.outputs.release_tag }}
+          tag_name: ${{ steps.previoustag.outputs.tag }}
           body_path: release/release_notes.md
           files: |
             release/UE4SS_v*.zip
