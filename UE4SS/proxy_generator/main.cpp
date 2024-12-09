@@ -21,6 +21,7 @@ namespace fs = std::filesystem;
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::ifstream;
 using std::ofstream;
 
 using std::string;
@@ -87,27 +88,121 @@ std::vector<ExportFunction> DumpExports(const fs::path& dll_path)
     return exports;
 }
 
+std::vector<ExportFunction> ReadExportsFile(const fs::path& exp_path, fs::path& dll_path_out)
+{
+    dll_path_out.clear();
+    ifstream exp_file(exp_path);
+
+    std::string line;
+    while (std::getline(exp_file, line))
+    {
+        auto pos = line.find("Dump of file ");
+        if (pos != string::npos)
+        {
+            dll_path_out = line.substr(13);
+            break;
+        }
+    }
+
+    if (dll_path_out.empty())
+    {
+        cerr << std::format("Failed to read export file (missing file info)") << endl;
+        return {};
+    }
+
+    std::vector<ExportFunction> exports;
+
+    auto ordpos = string::npos;
+    auto ordlen = string::npos;
+    auto namepos = string::npos;
+
+    while (std::getline(exp_file, line))
+    {
+        if (namepos == string::npos)
+        {
+            auto ord = line.find("ordinal");
+            auto hnt = line.find("hint", ord);
+            auto nme = line.find("name", hnt);
+            if (nme != string::npos)
+            {
+                ordpos = ord;
+                ordlen = hnt - ord;
+                namepos = nme;
+
+                // consume while line is blank
+                while (std::getline(exp_file, line) && (line.find_first_not_of("\n\r\t ") == string::npos));
+            }
+        }
+
+        if (namepos != string::npos)
+        {
+            // if line is blank, break
+            // TODO: handle dlls without any exports
+            if (line.find_first_not_of("\n\r\t ") == string::npos)
+            {
+                break;
+            }
+
+            uint16_t ordinal;
+            std::string export_name;
+            try
+            {
+                ordinal = std::stoi(line.substr(ordpos, ordlen));
+                export_name = line.substr(namepos);
+                if (export_name.empty()) throw;
+            }
+            catch (std::exception &err)
+            {
+                (void)err;
+                cerr << std::format("Failed to read export file (invalid export line found)") << endl;
+                return {};
+            }
+
+            auto is_named = export_name != "[NONAME]";
+
+            ExportFunction exp(ordinal, is_named, is_named ? export_name : std::format("ordinal{}", ordinal));
+            exports.push_back(exp);
+        }
+    }
+
+    return exports;
+}
+
 int _tmain(int argc, TCHAR* argv[])
 {
     if (argc != 3)
     {
-        cerr << "Invalid arguments! Expected: proxy_generator.exe <input_dll_name> <output_path>" << endl;
+        cerr << "Invalid arguments! Expected: proxy_generator.exe <input_dll_name_or_exports_file> <output_path>" << endl;
         return -1;
     }
 
-    const fs::path input_dll = argv[1];
-    const fs::path input_dll_name = input_dll.filename();
+    const fs::path input_file = argv[1];
     const fs::path output_path = argv[2];
 
-    if (!fs::exists(input_dll))
+    if (!fs::exists(input_file))
     {
-        cerr << "Input dll doesn't exist!\n" << endl;
+        cerr << "Input file doesn't exist!\n" << endl;
         return -1;
     }
 
-    cout << std::format("Generating a proxy for {}, output path: {}", input_dll.string(), output_path.string()) << endl;
+    fs::path input_dll = input_file;
+    fs::path input_dll_name = input_file.filename();
+    std::vector<ExportFunction> exports;
 
-    const auto exports = DumpExports(input_dll);
+    if (input_file.extension() == ".exports")
+    {
+        cout << std::format("Generating a proxy using {} exports, output path: {}", input_dll_name.string(), output_path.string()) << endl;
+
+        exports = ReadExportsFile(input_file, input_dll);
+        input_dll_name = input_dll.filename();
+    }
+    else
+    {
+        cout << std::format("Generating a proxy for {}, output path: {}", input_dll.string(), output_path.string()) << endl;
+
+        exports = DumpExports(input_dll);
+    }
+
     cout << std::format("Export count: {}", exports.size()) << endl;
 
     ofstream def_file((output_path / input_dll_name).replace_extension("def"));
