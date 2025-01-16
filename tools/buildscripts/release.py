@@ -99,7 +99,7 @@ class ReleaseHandler:
                     ue4ss_dll_path = os.path.join(root, file)
                 if file.lower() == "ue4ss.pdb":
                     ue4ss_pdb_path = os.path.join(root, file)
-                if file.lower() == "dwmapi.dll":
+                if file.lower() == "xinput1_3.dll":
                     dwmapi_dll_path = os.path.join(root, file)
                 for mod_name in cpp_mods_paths:
                     if file.lower() == mod_name.lower() + '.dll':

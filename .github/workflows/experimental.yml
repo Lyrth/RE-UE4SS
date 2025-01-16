@@ -59,7 +59,7 @@ jobs:
 
       - name: Build
         run: |
-          xmake f -m "Game__Shipping__Win64" -y
+          xmake f -m "Game__Shipping__Win64" -y --ue4ssProxyPath=C:\Windows\System32\xinput1_3.dll
           xmake build
 
       - name: Package
@@ -76,13 +76,6 @@ jobs:
             release/zDEV-UE4SS_v*.zip
             release/zCustomGameConfigs.zip
             release/zMapGenBP.zip
-
-      - name: Delete old release assets
-        uses: mknejp/delete-release-assets@v1
-        with:
-          token: ${{ github.token }}
-          tag: experimental-latest
-          assets: '*'
 
       - name: Make Permanent Latest Release
         uses: softprops/action-gh-release@v1
