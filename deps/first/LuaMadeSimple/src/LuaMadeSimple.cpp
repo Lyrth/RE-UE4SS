@@ -812,6 +812,65 @@ namespace RC::LuaMadeSimple
         --m_num_tables_being_iterated;
     }
 
+    auto Lua::for_each_in_table_stk(int idx, const Lua::ForEachInTableCallable& callable) const -> void
+    {
+        // If there are other values on the stack after the table then everything break
+        // So lets make sure the table is at the top of the stack
+        // 1: table (original table)
+
+        lua_pushvalue(get_lua_state(), idx);
+        // 1: table (original table)
+        // 2: table  (original table, dupe)
+
+        // Put nil on the top of the stack for lua_next
+        lua_pushnil(get_lua_state());
+        // 1: table (original table)
+        // 2: table (original table, dupe)
+        // 3: nil (key)
+
+        // Stack index -2 = table
+        while (lua_next(get_lua_state(), -2) != 0)
+        {
+            // 1: table (original table)
+            // 2: table  (original table, dupe)
+            // 3: number (key)
+            // 4: table (value)
+
+            // Put the table key at the top of the stack
+            // This is to prevent lua_next from getting confused if the key is a number
+            lua_pushvalue(get_lua_state(), -2);
+            // 1: table (original table)
+            // 2: table  (original table, dupe)
+            // 3: number (key)
+            // 4: table (value)
+            // 5: number (key)
+
+            // No we have access to the table key at index -1 and the table value at -2
+            // It's up to the 'callable' to fetch the key/value from the stack
+            // This makes dealing with different types easier
+            // TODO: Make it so you don't need to pass the 'this' pointer to both the key & value struct
+            LuaTableReference table{.key = {this}, .value = {this}};
+            if (callable(table))
+            {
+                lua_pop(get_lua_state(), 3);
+                // 1: table (original table)
+                // 2: table  (original table, dupe)
+                break;
+            }
+            else
+            {
+                lua_pop(get_lua_state(), 2);
+                // 1: table (original table)
+                // 2: table  (original table, dupe)
+                // 3: number (key)
+            }
+        }
+
+        lua_pop(get_lua_state(), 1);
+        // 1: table (original table)
+    }
+
+
     auto Lua::is_function() const -> bool
     {
         return lua_isfunction(get_lua_state(), 1);

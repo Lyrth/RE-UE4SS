@@ -395,12 +395,12 @@ namespace RC::LuaType
             auto_construct_object(params.lua, *property_value);
             break;
         case Operation::Set: {
-            if (params.lua.is_userdata())
+            if (params.lua.is_userdata(params.stored_at_index))
             {
                 const auto& lua_object = params.lua.get_userdata<LuaType::UObject>(params.stored_at_index);
                 *property_value = lua_object.get_remote_cpp_object();
             }
-            else if (params.lua.is_nil())
+            else if (params.lua.is_nil(params.stored_at_index))
             {
                 *property_value = nullptr;
             }
@@ -430,14 +430,14 @@ namespace RC::LuaType
             LuaType::UClass::construct(params.lua, *property_value);
             break;
         case Operation::Set: {
-            if (params.lua.is_userdata())
+            if (params.lua.is_userdata(params.stored_at_index))
             {
                 const auto& lua_object = params.lua.get_userdata<LuaType::UClass>(params.stored_at_index);
                 *property_value = lua_object.get_remote_cpp_object();
             }
-            else if (params.lua.is_nil())
+            else if (params.lua.is_nil(params.stored_at_index))
             {
-                params.lua.discard_value();
+                params.lua.discard_value(params.stored_at_index);
             }
             else
             {
@@ -596,9 +596,11 @@ namespace RC::LuaType
 
                 // Pushing on to the stack, the value corresponding to table[key] if it exists
                 // table exists at index 1 if outermost table, and -2 if nested table
+                // Output::send<LogLevel::Warning>(ensure_str(params.get_stack_dump(fmt::format("PRE GET {}", to_string(field_type_fname.ToString())).c_str())));
                 auto active_table_index = params.stored_at_index < 0 ? params.stored_at_index - 1 : params.stored_at_index;
                 auto table_value_type = lua_rawget(params.lua.get_lua_state(), active_table_index);
 
+                // Output::send<LogLevel::Warning>(fmt::format(STR(" == stored_at_index {}; active_table_index {}; table_value_type {};"), params.stored_at_index, active_table_index, table_value_type));
                 // At the top of the stack now: the value corresponding to table[key] or nil
 
                 // If there was nothing in the table for this field, leave default value and move on to the next field
@@ -615,6 +617,8 @@ namespace RC::LuaType
                 {
                     unsigned char* data = static_cast<unsigned char*>(params.data);
                     data = &data[field->GetOffset_Internal()];
+
+                // Output::send<LogLevel::Warning>(ensure_str(params.get_stack_dump(fmt::format("PRE PUSHER {}", to_string(field_type_fname.ToString())).c_str())));
 
                     const PusherParams pusher_params{
                             .operation = Operation::Set,
@@ -642,19 +646,19 @@ namespace RC::LuaType
         };
 
         auto lua_to_memory = [&]() {
-            if (params.lua.is_userdata())
+            if (params.lua.is_userdata(params.stored_at_index))
             {
                 // StructData as userdata
                 params.throw_error("push_structproperty::lua_to_memory", "StructData as userdata is not yet implemented but there's userdata on the stack");
             }
-            else if (params.lua.is_table())
+            else if (params.lua.is_table(params.stored_at_index))
             {
                 // StructData as table
                 lua_table_to_memory();
             }
-            else if (params.lua.is_nil())
+            else if (params.lua.is_nil(params.stored_at_index))
             {
-                params.lua.discard_value();
+                params.lua.discard_value(params.stored_at_index);
             }
             else
             {
@@ -754,28 +758,33 @@ namespace RC::LuaType
             size_t array_element_size = inner->GetElementSize();
 
             auto array = new (params.data) Unreal::FScriptArray{};
-            size_t table_length = lua_rawlen(params.lua.get_lua_state(), 1);
+            size_t table_length = lua_rawlen(params.lua.get_lua_state(), params.stored_at_index);
             bool has_elements = table_length > 0;
+
+            // Output::send<LogLevel::Warning>(ensure_str(params.get_stack_dump("PRE ARRAY ITERATE")));
+            // Output::send<LogLevel::Warning>(fmt::format(STR("-- ARR : stored_at_index {}; table_length {};"), params.stored_at_index, table_length));
 
             size_t element_index{0};
 
             if (has_elements)
             {
-
-                params.lua.for_each_in_table([&](LuaMadeSimple::LuaTableReference table) -> bool {
+                params.lua.for_each_in_table_stk(params.stored_at_index, [&](LuaMadeSimple::LuaTableReference table) -> bool {
                     // Skip this table entry if the key wasn't numerical, who knows what the user put in their script
+
+                    // Output::send<LogLevel::Warning>(ensure_str(params.get_stack_dump("=== FOREACH STACK")));
                     if (!table.key.is_integer())
                     {
                         return false;
                     }
 
-                    params.lua.insert_value(-2);
+                    params.lua.insert_value(-2, -1);
                     array->AddZeroed(1, inner->GetSize(), inner->GetMinAlignment());
                     const PusherParams pusher_params{.operation = Operation::Set,
                                                      .lua = params.lua,
                                                      .base = static_cast<Unreal::UObject*>(array->GetData()), // Base is the start of the params struct
                                                      .data = &static_cast<uint8_t*>(array->GetData())[array_element_size * element_index],
-                                                     .property = inner};
+                                                     .property = inner,
+                                                     .stored_at_index = -1};
                     StaticState::m_property_value_pushers[name_comparison_index](pusher_params);
 
                     ++element_index;
@@ -783,6 +792,8 @@ namespace RC::LuaType
                     return false;
                 });
             }
+
+            // Output::send<LogLevel::Warning>(ensure_str(params.get_stack_dump("POST ARRAY ITERATE")));
 
             // auto* to_array = static_cast<Unreal::FScriptArray*>(params.data);
             if (has_elements)
@@ -802,26 +813,27 @@ namespace RC::LuaType
             // Remove the table from the stack to remain consistent to the pusher system, if there were no elements
             // Otherwise it get removed in the end of for_each_in_table loop
             // Other systems might rely on this behavior
-            if (!has_elements)
-            {
-                params.lua.discard_value();
-            }
+            // if (!has_elements)
+            // {
+            //     // assumes stack is clean
+                params.lua.discard_value(params.stored_at_index);
+            // }
         };
 
         auto lua_to_memory = [&]() {
-            if (params.lua.is_userdata())
+            if (params.lua.is_userdata(params.stored_at_index))
             {
                 // TArray as userdata
                 params.throw_error("push_arrayproperty::lua_to_memory", "StructData as userdata is not yet implemented but there's userdata on the stack");
             }
-            else if (params.lua.is_table())
+            else if (params.lua.is_table(params.stored_at_index))
             {
                 // TArray as table
                 lua_table_to_memory();
             }
-            else if (params.lua.is_nil())
+            else if (params.lua.is_nil(params.stored_at_index))
             {
-                params.lua.discard_value();
+                params.lua.discard_value(params.stored_at_index);
             }
             else
             {
@@ -905,6 +917,8 @@ namespace RC::LuaType
 
             FScriptMapInfo info(map_property->GetKeyProp(), map_property->GetValueProp());
             info.validate_pushers(params.lua);
+
+            // TODO move table???
 
             auto map = new(params.data) Unreal::FScriptMap{};
 
@@ -1224,6 +1238,8 @@ namespace RC::LuaType
             LuaType::FString::construct(params.lua, string);
             return;
         case Operation::Set: {
+            // Output::send<LogLevel::Warning>(ensure_str(params.get_stack_dump("PRE STR")));
+
             if (params.lua.is_string(params.stored_at_index))
             {
                 auto lua_string = params.lua.get_string(params.stored_at_index);
@@ -1237,7 +1253,7 @@ namespace RC::LuaType
             }
             else
             {
-                params.throw_error("push_strproperty", "StrProperty can only be set to a string or FString");
+                params.throw_error("push_strproperty", fmt::format("StrProperty can only be set to a string or FString, was {}", lua_typename(params.lua.get_lua_state(), lua_type(params.lua.get_lua_state(), params.stored_at_index))));
             }
             return;
         }
@@ -1298,12 +1314,12 @@ namespace RC::LuaType
             auto_construct_object(params.lua, *property_value);
             break;
         case Operation::Set: {
-            if (params.lua.is_userdata())
+            if (params.lua.is_userdata(params.stored_at_index))
             {
                 const auto& lua_object = params.lua.get_userdata<LuaType::UInterface>(params.stored_at_index);
                 *property_value = lua_object.get_remote_cpp_object();
             }
-            else if (params.lua.is_nil())
+            else if (params.lua.is_nil(params.stored_at_index))
             {
                 *property_value = nullptr;
             }

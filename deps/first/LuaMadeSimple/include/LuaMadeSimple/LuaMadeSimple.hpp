@@ -546,6 +546,7 @@ namespace RC::LuaMadeSimple
         // If you use a lambda then make absolutely sure to capture the 'LuaMadeSimple::Lua' object by reference
         // If you don't then it will be improperly copied and things, including nested for_each calls, will break
         RC_LMS_API auto for_each_in_table(const ForEachInTableCallable& callable) const -> void;
+        RC_LMS_API auto for_each_in_table_stk(int idx, const ForEachInTableCallable& callable) const -> void;
 
         [[nodiscard]] RC_LMS_API auto is_function() const -> bool;
         [[nodiscard]] RC_LMS_API auto is_global_function(std::string_view global_function_name) const -> bool;
